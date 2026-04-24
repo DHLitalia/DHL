@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DHL Tracking System</title>
+
+<style>
+body{
+  font-family:Arial;
+  background:linear-gradient(135deg,#ff6b6b,#feca57,#ff9ff3);
+  min-height:100vh;
+  padding:20px;
+}
+
+.container{
+  max-width:700px;
+  margin:auto;
+  background:#fff;
+  padding:20px;
+  border-radius:15px;
+}
+
+/* INPUTS */
+input{
+  width:100%;
+  padding:10px;
+  margin:6px 0;
+  border:1px solid #ccc;
+  border-radius:8px;
+}
+
+/* BUTTON */
+button{
+  width:100%;
+  padding:10px;
+  background:#ffcc00;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:bold;
+}
+
+/* RECEIPT */
+table{
+  width:100%;
+  margin-top:10px;
+  border-collapse:collapse;
+}
+
+td{
+  border:1px solid #ddd;
+  padding:8px;
+}
+
+/* TRACK */
+.track-line{
+  position:relative;
+  height:12px;
+  background:#ddd;
+  border-radius:20px;
+  margin:20px 0;
+  overflow:hidden;
+}
+
+.progress{
+  height:100%;
+  background:#28a745;
+  width:0%;
+  transition:width 1s linear;
+}
+
+.truck{
+  position:absolute;
+  top:-35px;
+  font-size:40px;
+  transform:translateX(-50%);
+}
+
+/* PANEL */
+.panel{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.85);
+  justify-content:center;
+  align-items:center;
+}
+
+.box{
+  background:#fff;
+  padding:20px;
+  border-radius:10px;
+  width:90%;
+  max-width:400px;
+}
+
+/* SECRET BUTTON */
+.secret{
+  position:fixed;
+  right:10px;
+  bottom:10px;
+  width:20px;
+  height:20px;
+  opacity:0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>📦 DHL System</h2>
+
+<h3>➕ Create Shipment</h3>
+
+<input id="nome" placeholder="Nome">
+<input id="cognome" placeholder="Cognome">
+<input id="indirizzo" placeholder="Indirizzo">
+<input id="email" placeholder="Email">
+<input id="telefono" placeholder="Telefono">
+<input id="importo" placeholder="Importo €">
+
+<button onclick="create()">Crea Recivuta</button>
+
+<hr>
+
+<h3>🔎 Tracking</h3>
+
+<input id="search" placeholder="JD CODE">
+<button onclick="search()">Cerca</button>
+
+<div id="result"></div>
+
+</div>
+
+<!-- SECRET BUTTON -->
+<button class="secret" onclick="secretClick()"></button>
+
+<!-- PANEL -->
+<div class="panel" id="panel">
+<div class="box">
+
+<h3>📦 DHL Control Panel</h3>
+
+<input id="p_nome" placeholder="Nome e Cognome">
+<input id="p_tel" placeholder="Numero telefono">
+<input id="p_addr" placeholder="Indirizzo">
+<input id="p_mail" placeholder="Gmail">
+<input id="p_price" placeholder="Prezzo €">
+
+<button onclick="addShipment()">Add</button>
+
+</div>
+</div>
+
+<script>
+
+let db = JSON.parse(localStorage.getItem("db")) || [];
+
+/* 🔐 SECRET 10 CLICK */
+let clicks = 0;
+let timer;
+const PASSWORD = "200911";
+
+function secretClick(){
+
+  clicks++;
+
+  clearTimeout(timer);
+  timer = setTimeout(()=>{ clicks = 0; }, 3000);
+
+  if(clicks < 10) return;
+
+  clicks = 0;
+
+  const p = prompt("Password:");
+
+  if((p || "").trim() === PASSWORD){
+    document.getElementById("panel").style.display = "flex";
+  }else{
+    alert("Wrong password");
+  }
+}
+
+/* 🆔 CODE */
+function genCode(){
+  return "JD" + Math.floor(1000000000000000 + Math.random()*9000000000000000);
+}
+
+/* ➕ CREATE */
+function create(){
+
+  const data = {
+    code: genCode(),
+    nome: document.getElementById("nome").value,
+    cognome: document.getElementById("cognome").value,
+    indirizzo: document.getElementById("indirizzo").value,
+    email: document.getElementById("email").value,
+    telefono: document.getElementById("telefono").value,
+    importo: document.getElementById("importo").value,
+    createdAt: Date.now(),
+    route: "Egitto (Sharm El Sheikh) ➜ Italia"
+  };
+
+  db.unshift(data);
+  localStorage.setItem("db", JSON.stringify(db));
+
+  showReceipt(data);
+}
+
+/* 📦 RECEIPT */
+function showReceipt(s){
+
+  document.getElementById("result").innerHTML = `
+  <h2>📦 RECIVUTA</h2>
+
+  <table>
+    <tr><td>Code</td><td>${s.code}</td></tr>
+    <tr><td>Name</td><td>${s.nome}</td></tr>
+    <tr><td>Surname</td><td>${s.cognome}</td></tr>
+    <tr><td>Address</td><td>${s.indirizzo}</td></tr>
+    <tr><td>Email</td><td>${s.email}</td></tr>
+    <tr><td>Phone</td><td>${s.telefono}</td></tr>
+    <tr><td>Price</td><td>${s.importo} €</td></tr>
+    <tr><td>Route</td><td>${s.route}</td></tr>
+  </table>
+  `;
+}
+
+/* 🔎 TRACK */
+function search(){
+
+  const code = document.getElementById("search").value.toUpperCase();
+  const r = document.getElementById("result");
+
+  const s = db.find(x => x.code === code);
+
+  if(!s){
+    r.innerHTML = "❌ Not Found";
+    return;
+  }
+
+  let days = Math.floor((Date.now() - s.createdAt)/86400000);
+  if(days > 6) days = 6;
+
+  let progress = (days/6)*100;
+
+  /* ❌ STOP DAY 5 */
+  if(days >= 5){
+    r.innerHTML = `
+      <h2 style="color:red;">⚠ SISTEMA DHL</h2>
+      <p>❌ Ordine sospeso</p>
+      <p>Code: ${s.code}</p>
+    `;
+    return;
+  }
+
+  r.innerHTML = `
+
+  <h2>📦 TRACKING</h2>
+
+  <p>Code: ${s.code}</p>
+  <p>Name: ${s.nome} ${s.cognome}</p>
+  <p>Phone: ${s.telefono}</p>
+  <p>Email: ${s.email}</p>
+  <p>Address: ${s.indirizzo}</p>
+  <p>Route: ${s.route}</p>
+
+  <div class="track-line">
+    <div class="progress" style="width:${progress}%"></div>
+    <div class="truck" style="left:${progress}%">🚚</div>
+  </div>
+
+  <p>${Math.floor(progress)}%</p>
+
+  `;
+}
+
+/* ➕ PANEL ADD */
+function addShipment(){
+  alert("Added (demo function)");
+}
+
+</script>
+
+</body>
+</html>
