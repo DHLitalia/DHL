@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DHL Tracking System</title>
+
+<style>
+body{
+  font-family:Arial;
+  margin:0;
+  background:#f4f4f4;
+}
+
+.main{
+  max-width:550px;
+  margin:auto;
+  padding:40px 20px;
+  text-align:center;
+}
+
+input{
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  border-radius:10px;
+  border:1px solid #ddd;
+}
+
+button{
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  background:#ffcc00;
+  border:none;
+  border-radius:10px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+/* CARD */
+.card{
+  background:#fff;
+  padding:15px;
+  margin-top:20px;
+  border-radius:10px;
+  text-align:left;
+}
+
+/* TABLE */
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:14px;
+}
+
+td{
+  padding:8px;
+  border-bottom:1px solid #eee;
+}
+
+td:first-child{
+  font-weight:bold;
+  width:40%;
+}
+
+/* TRACK */
+.track{
+  position:relative;
+  height:10px;
+  background:#ddd;
+  border-radius:20px;
+  margin:20px 0;
+}
+
+.progress{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#00c853,#00e676);
+}
+
+/* 🚚 */
+.truck{
+  position:absolute;
+  top:-25px;
+  right:0%;
+  font-size:22px;
+}
+
+/* ADMIN */
+#admin{
+  position:fixed;
+  right:0;
+  top:0;
+  width:300px;
+  height:100%;
+  background:#111;
+  color:#fff;
+  padding:15px;
+  display:none;
+  overflow:auto;
+}
+
+/* DHL BUTTON */
+#adminToggle{
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#ffcc00;
+  color:#111;
+  font-weight:bold;
+  padding:12px 18px;
+  border-radius:25px;
+  cursor:pointer;
+  z-index:999;
+}
+</style>
+</head>
+
+<body>
+
+<div class="main">
+
+<h2>DHL TRACKING SYSTEM</h2>
+
+<input id="searchCode" placeholder="Tracking Code">
+<button onclick="search()">TRACK</button>
+
+<div id="result"></div>
+
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="admin">
+
+<h3>ADMIN PANEL</h3>
+
+<input id="nome" placeholder="Name">
+<input id="cognome" placeholder="Surname">
+<input id="indirizzo" placeholder="Address">
+<input id="gmail" placeholder="Email">
+<input id="telefono" placeholder="Phone">
+
+<button onclick="createShipment()">Create</button>
+
+<hr>
+
+<input id="adminSearch" placeholder="Code">
+
+<select id="adminStatus">
+  <option value="running">Running</option>
+  <option value="stopped">Stopped</option>
+  <option value="recivuto">Delivered</option>
+</select>
+
+<button onclick="applyAdmin()">Update</button>
+
+</div>
+
+<!-- DHL BUTTON -->
+<div id="adminToggle">DHL</div>
+
+<script>
+
+let shipments = JSON.parse(localStorage.getItem("shipments")) || {};
+
+/* GENERATE */
+function generateCode(){
+  return "JD" + Date.now();
+}
+
+/* CREATE */
+function createShipment(){
+
+  let code = generateCode();
+
+  shipments[code] = {
+    code,
+    nome: nome.value,
+    cognome: cognome.value,
+    indirizzo: indirizzo.value,
+    gmail: gmail.value,
+    telefono: telefono.value,
+    createdAt: Date.now(),
+    status: "running"
+  };
+
+  save();
+  alert(code);
+}
+
+/* SAVE */
+function save(){
+  localStorage.setItem("shipments", JSON.stringify(shipments));
+}
+
+/* SEARCH */
+function search(){
+
+  let code = searchCode.value.trim();
+  let s = shipments[code];
+
+  if(!s){
+    result.innerHTML = "Not Found";
+    return;
+  }
+
+  show(s);
+}
+
+/* SHOW */
+function show(s){
+
+  result.innerHTML = `
+  <div class="card">
+
+    <h3>DHL EXPRESS</h3>
+
+    <table>
+      <tr><td>Tracking</td><td>${s.code}</td></tr>
+      <tr><td>Origin</td><td>Sharm El Sheikh, Egypt</td></tr>
+      <tr><td>Destination</td><td>Italy</td></tr>
+      <tr><td>Name</td><td>${s.nome} ${s.cognome}</td></tr>
+      <tr><td>Email</td><td>${s.gmail}</td></tr>
+      <tr><td>Phone</td><td>${s.telefono}</td></tr>
+    </table>
+
+    <div class="track">
+      <div class="progress" id="bar_${s.code}"></div>
+      <div class="truck" id="truck_${s.code}">🚚</div>
+    </div>
+
+    <div id="status_${s.code}"></div>
+
+  </div>
+  `;
+
+  moveTruck(s.code);
+}
+
+/* TRACK REAL TIME */
+function moveTruck(code){
+
+  function update(){
+
+    let s = shipments[code];
+    if(!s) return;
+
+    const total = 5 * 24 * 60 * 60 * 1000;
+    const elapsed = Date.now() - s.createdAt;
+
+    let progress = (elapsed / total) * 100;
+    if(progress > 100) progress = 100;
+
+    let position = 100 - progress;
+
+    const truck = document.getElementById("truck_" + code);
+    const bar = document.getElementById("bar_" + code);
+    const status = document.getElementById("status_" + code);
+
+    if(s.status === "stopped"){
+      status.innerHTML = "Suspended";
+      return;
+    }
+
+    if(progress >= 100){
+      s.status = "recivuto";
+      save();
+
+      truck.style.right = "0%";
+      bar.style.width = "100%";
+
+      status.innerHTML = "Delivered Successfully";
+
+      return;
+    }
+
+    truck.style.right = position + "%";
+    bar.style.width = progress + "%";
+
+    status.innerHTML = "In Transit";
+
+    requestAnimationFrame(update);
+  }
+
+  update();
+}
+
+/* ADMIN */
+function applyAdmin(){
+
+  let code = adminSearch.value.trim();
+  let s = shipments[code];
+
+  if(!s) return;
+
+  s.status = adminStatus.value;
+
+  save();
+
+  alert("Updated");
+}
+
+/* 🔐 10 CLICKS + PASSWORD */
+let clicks = 0;
+let adminOpen = false;
+
+document.getElementById("adminToggle").addEventListener("click", () => {
+
+  let panel = document.getElementById("admin");
+
+  clicks++;
+
+  if(clicks < 10) return;
+
+  let pass = prompt("Enter password:");
+
+  if(pass === "200911"){
+
+    adminOpen = !adminOpen;
+    panel.style.display = adminOpen ? "block" : "none";
+
+  } else {
+    alert("Wrong password");
+  }
+
+  clicks = 0;
+});
+
+</script>
+
+</body>
+</html>
