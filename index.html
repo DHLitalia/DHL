@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DHL Tracking System</title>
+
+<style>
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+
+body{
+  font-family:Arial;
+  background:linear-gradient(135deg,#ff6b6b,#feca57,#ff9ff3);
+  min-height:100vh;
+  padding:20px;
+}
+
+.container{
+  max-width:700px;
+  margin:auto;
+  background:#fff;
+  padding:25px;
+  border-radius:15px;
+  text-align:center;
+}
+
+/* SEARCH */
+.search-box{
+  margin-top:20px;
+}
+
+#searchInput{
+  width:100%;
+  padding:15px;
+  font-size:16px;
+  border:2px solid #ffcc00;
+  border-radius:10px;
+  outline:none;
+}
+
+.search-btn{
+  margin-top:10px;
+  padding:10px 20px;
+  background:#ffcc00;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+/* RESULT */
+.result{
+  display:none;
+  margin-top:20px;
+  text-align:left;
+}
+
+/* TRACK */
+.track-line{
+  position:relative;
+  height:12px;
+  background:#ddd;
+  border-radius:20px;
+  margin:20px 0;
+  overflow:hidden;
+}
+
+.progress{
+  height:100%;
+  background:#28a745;
+  width:0%;
+  transition:width 1s linear;
+}
+
+.truck{
+  position:absolute;
+  top:-45px;
+  font-size:50px;
+  transform:translateX(-50%);
+  transition:left 1s linear;
+}
+
+/* TABLE */
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:15px;
+}
+
+td{
+  border:1px solid #ddd;
+  padding:8px;
+}
+
+td:first-child{
+  background:#f5f5f5;
+  font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>📦 DHL Tracking System</h2>
+
+<input id="searchInput" placeholder="JDXXXXXXXXXXXX">
+<button class="search-btn" onclick="searchTracking()">Search</button>
+
+<div id="result" class="result"></div>
+
+</div>
+
+<script>
+
+let shipments = JSON.parse(localStorage.getItem("dhlShipments")) || [];
+
+/* SEARCH */
+function searchTracking(){
+
+  const code = document.getElementById("searchInput").value.toUpperCase();
+  const result = document.getElementById("result");
+
+  const s = shipments.find(x => x.code === code);
+
+  if(!s){
+    result.style.display = "block";
+    result.innerHTML = "❌ Not Found";
+    return;
+  }
+
+  let passedDays = Math.floor((Date.now() - new Date(s.createdAt)) / 86400000);
+  if(passedDays > 6) passedDays = 6;
+
+  /* ❌ STOP DAY 5 */
+  if(passedDays >= 5){
+
+    result.style.display = "block";
+
+    result.innerHTML = `
+      <div style="padding:20px;background:#fff;border-radius:15px;text-align:center;">
+        <h2 style="color:red;">⚠ DHL SYSTEM</h2>
+        <p>❌ Il tuo ordine è stato sospeso</p>
+        <p>Codice: ${s.code}</p>
+        <p>Status: Bloccato (${passedDays}/6)</p>
+      </div>
+    `;
+    return;
+  }
+
+  let progress = (passedDays / 6) * 100;
+
+  const date = new Date(s.createdAt).toLocaleString('it-IT', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+
+  result.style.display = "block";
+
+  result.innerHTML = `
+
+  <div style="background:#fff;padding:20px;border-radius:15px;">
+
+    <h2>📦 RECEIPT</h2>
+
+    <table>
+      <tr><td>Code</td><td>${s.code}</td></tr>
+      <tr><td>Nome</td><td>${s.fullname}</td></tr>
+      <tr><td>Telefono</td><td>${s.phone}</td></tr>
+      <tr><td>Gmail</td><td>${s.gmail}</td></tr>
+      <tr><td>Indirizzo</td><td>${s.address}</td></tr>
+      <tr><td>Importo</td><td>${s.price} €</td></tr>
+
+      <!-- 🌍 ROUTE ADDED -->
+      <tr><td>Route</td><td>Egitto - Sharm El Sheikh ➜ Italia</td></tr>
+
+      <tr><td>Data</td><td>${date}</td></tr>
+      <tr><td>Giorni</td><td>${passedDays}/6</td></tr>
+    </table>
+
+    <div class="track-line">
+      <div class="progress" style="width:${progress}%"></div>
+      <div class="truck" style="left:${progress}%">🚚</div>
+    </div>
+
+    <p style="text-align:center;">Progress: ${Math.floor(progress)}%</p>
+
+  </div>
+
+  `;
+}
+
+</script>
+
+</body>
+</html>
